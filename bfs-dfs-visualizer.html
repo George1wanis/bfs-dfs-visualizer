@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BFS & DFS — Graph Traversal Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange:    #F4621F;
+    --orange-lt: #F9884A;
+    --orange-dk: #C44A10;
+    --yellow:    #F5C842;
+    --yellow-lt: #FAE07A;
+    --gray-900:  #1A1A18;
+    --gray-800:  #242420;
+    --gray-700:  #333330;
+    --gray-600:  #4A4A45;
+    --gray-400:  #7A7A72;
+    --gray-200:  #C8C8BE;
+    --gray-100:  #E8E8DE;
+    --white:     #F8F8F2;
+    --font-display: 'Syne', sans-serif;
+    --font-mono:    'Space Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--gray-900);
+    color: var(--white);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,98,31,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,98,31,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--gray-700);
+    padding-bottom: 1.5rem;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--orange);
+    background: rgba(244,98,31,.12);
+    border: 1px solid rgba(244,98,31,.3);
+    padding: 3px 10px;
+    border-radius: 2px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1.05;
+    color: var(--white);
+    letter-spacing: -.02em;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--orange);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 6px;
+    letter-spacing: .02em;
+  }
+
+  /* Algo tabs */
+  .algo-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--gray-700);
+    border-radius: 4px;
+    overflow: hidden;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 10px 28px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    background: transparent;
+    color: var(--gray-400);
+    border: none;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+  }
+
+  .tab + .tab { border-left: 1px solid var(--gray-700); }
+
+  .tab:hover { color: var(--white); background: var(--gray-800); }
+
+  .tab.active {
+    background: var(--orange);
+    color: var(--white);
+  }
+
+  /* Main layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 760px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  .graph-card {
+    background: var(--gray-800);
+    border: 1px solid var(--gray-700);
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  .graph-card svg { display: block; width: 100%; }
+
+  /* Side panel */
+  .side-panel { display: flex; flex-direction: column; gap: 12px; }
+
+  .info-card {
+    background: var(--gray-800);
+    border: 1px solid var(--gray-700);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+
+  .info-card .label {
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    margin-bottom: 6px;
+  }
+
+  .info-card .value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.6;
+    word-break: break-all;
+    min-height: 20px;
+  }
+
+  .info-card .value.orange { color: var(--orange-lt); }
+  .info-card .value.yellow { color: var(--yellow); }
+
+  /* Complexity table */
+  .complexity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .cx-item {
+    background: var(--gray-700);
+    border-radius: 4px;
+    padding: 8px 10px;
+  }
+
+  .cx-item .cx-label { font-size: 9px; color: var(--gray-400); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 3px; }
+  .cx-item .cx-val   { font-size: 12px; font-weight: 700; color: var(--yellow); }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border-radius: 3px;
+    border: 1px solid var(--gray-600);
+    background: transparent;
+    color: var(--gray-200);
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .btn:hover { border-color: var(--orange); color: var(--orange); }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .3; cursor: default; }
+  .btn:disabled:hover { border-color: var(--gray-600); color: var(--gray-200); }
+
+  .btn-primary {
+    background: var(--orange);
+    border-color: var(--orange);
+    color: var(--white);
+  }
+  .btn-primary:hover { background: var(--orange-lt); border-color: var(--orange-lt); color: var(--white); }
+
+  /* Log */
+  .log-wrap {
+    margin-top: 16px;
+    background: var(--gray-800);
+    border: 1px solid var(--gray-700);
+    border-left: 3px solid var(--orange);
+    border-radius: 4px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--gray-200);
+    line-height: 1.7;
+    min-height: 52px;
+    max-height: 100px;
+    overflow-y: auto;
+  }
+
+  .log-wrap strong { color: var(--orange-lt); }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--gray-400);
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .legend-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid transparent;
+    flex-shrink: 0;
+  }
+
+  /* Step counter */
+  .step-bar {
+    margin-top: 14px;
+    height: 3px;
+    background: var(--gray-700);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .step-fill {
+    height: 100%;
+    background: var(--orange);
+    border-radius: 2px;
+    transition: width .3s ease;
+    width: 0%;
+  }
+
+  /* Section title */
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    margin-bottom: 12px;
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--gray-700);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="header-top">
+      <div>
+        <div class="badge">Graph Algorithms</div>
+        <h1>BFS <em>&</em> DFS<br>Traversal</h1>
+        <p class="subtitle">Step through breadth-first and depth-first search on a 4-level tree — 20 nodes</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="algo-tabs">
+    <button class="tab active" onclick="switchAlgo('bfs',this)">BFS — Breadth First</button>
+    <button class="tab" onclick="switchAlgo('dfs',this)">DFS — Depth First</button>
+  </div>
+
+  <div class="main-grid">
+    <div>
+      <div class="graph-card">
+        <svg id="graph-svg" viewBox="0 0 480 400"></svg>
+      </div>
+
+      <div class="step-bar"><div class="step-fill" id="step-fill"></div></div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#9FE1CB;border-color:#1D9E75"></div>
+          <span>Visited</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#F4621F;border-color:#C44A10"></div>
+          <span>Current</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#F5C842;border-color:#BA7517"></div>
+          <span>Frontier</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#4A4A45;border-color:#7A7A72"></div>
+          <span>Unvisited</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="btn-reset" onclick="reset()">↺ Reset</button>
+        <button class="btn btn-primary" id="btn-step" onclick="doStep()">Step →</button>
+        <button class="btn" id="btn-auto" onclick="toggleAuto()">▶ Auto-play</button>
+        <button class="btn" id="btn-speed" onclick="cycleSpeed()">Speed: 1×</button>
+      </div>
+
+      <div class="log-wrap" id="log">Ready. Press <strong>Step</strong> or <strong>Auto-play</strong> to begin.</div>
+    </div>
+
+    <div class="side-panel">
+      <div class="info-card">
+        <div class="label" id="struct-label">Queue (FIFO)</div>
+        <div class="value orange" id="struct-display">—</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Visited order</div>
+        <div class="value" id="visited-display">—</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Current node</div>
+        <div class="value yellow" id="current-display">—</div>
+      </div>
+      <div class="info-card">
+        <div class="label">Step</div>
+        <div class="value" id="step-display">0 / 0</div>
+      </div>
+
+      <div class="section-title">Complexity</div>
+
+      <div class="complexity-grid" id="complexity-grid">
+        <div class="cx-item"><div class="cx-label">Time</div><div class="cx-val">O(V+E)</div></div>
+        <div class="cx-item"><div class="cx-label">Space</div><div class="cx-val">O(V)</div></div>
+        <div class="cx-item"><div class="cx-label">Shortest path</div><div class="cx-val">Yes</div></div>
+        <div class="cx-item"><div class="cx-label">Complete</div><div class="cx-val">Yes</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NODES = {
+  A: {x:240, y:24},
+  B: {x:120, y:96},  C: {x:360, y:96},
+  D: {x:56,  y:176}, E: {x:184, y:176}, F: {x:296, y:176}, G: {x:424, y:176},
+  H: {x:20,  y:260}, I: {x:92,  y:260}, J: {x:148, y:260}, K: {x:220, y:260},
+  L: {x:268, y:260}, M: {x:324, y:260}, N: {x:380, y:260}, O: {x:448, y:260},
+  P: {x:20,  y:348}, Q: {x:92,  y:348}, R: {x:148, y:348}, S: {x:268, y:348}, T: {x:380, y:348}
+};
+
+const EDGES = [
+  ['A','B'],['A','C'],
+  ['B','D'],['B','E'],['C','F'],['C','G'],
+  ['D','H'],['D','I'],['E','J'],['E','K'],['F','L'],['F','M'],['G','N'],['G','O'],
+  ['H','P'],['H','Q'],['J','R'],['L','S'],['N','T']
+];
+
+const ADJ = {
+  A:['B','C'],
+  B:['A','D','E'], C:['A','F','G'],
+  D:['B','H','I'], E:['B','J','K'], F:['C','L','M'], G:['C','N','O'],
+  H:['D','P','Q'], I:['D'], J:['E','R'], K:['E'], L:['F','S'], M:['F'], N:['G','T'], O:['G'],
+  P:['H'], Q:['H'], R:['J'], S:['L'], T:['N']
+};
+
+const COL = {
+  unvisited: {fill:'#333330', stroke:'#7A7A72', text:'#C8C8BE'},
+  frontier:  {fill:'#3D3100', stroke:'#F5C842', text:'#F5C842'},
+  current:   {fill:'#5A1A00', stroke:'#F4621F', text:'#F9884A'},
+  visited:   {fill:'#0A2E20', stroke:'#1D9E75', text:'#9FE1CB'},
+};
+
+const R = 16;
+let algo = 'bfs', steps = [], stepIdx = 0, autoTimer = null;
+const speedMs = [800, 320, 1500], speedLabels = ['1×', '2×', '0.5×'];
+let speedIdx = 0;
+
+function buildSteps(algoType) {
+  const visited = new Set(), order = [], allSteps = [];
+  if (algoType === 'bfs') {
+    const queue = ['A'];
+    visited.add('A');
+    allSteps.push({visited: new Set(visited), frontier: [...queue], current: null, order: [...order],
+      log: 'Initialize: enqueue start node A. Queue: [A]'});
+    while (queue.length) {
+      const node = queue.shift();
+      order.push(node);
+      const nbrs = ADJ[node].filter(n => !visited.has(n));
+      nbrs.forEach(n => { visited.add(n); queue.push(n); });
+      allSteps.push({visited: new Set(visited), frontier: [...queue], current: node, order: [...order],
+        log: `Dequeue ${node} → mark visited. Enqueue neighbors: [${nbrs.join(', ') || 'none'}]. Queue: [${queue.join(', ') || '∅'}]`});
+    }
+  } else {
+    const stack = ['A'];
+    allSteps.push({visited: new Set(visited), frontier: [...stack], current: null, order: [...order],
+      log: 'Initialize: push A onto stack. Stack (top→): [A]'});
+    while (stack.length) {
+      const node = stack.pop();
+      if (visited.has(node)) continue;
+      visited.add(node);
+      order.push(node);
+      const nbrs = [...ADJ[node]].reverse().filter(n => !visited.has(n));
+      nbrs.forEach(n => stack.push(n));
+      allSteps.push({visited: new Set(visited), frontier: [...stack].reverse(), current: node, order: [...order],
+        log: `Pop ${node} → mark visited. Push neighbors: [${nbrs.join(', ') || 'none'}]. Stack (top→): [${[...stack].reverse().join(', ') || '∅'}]`});
+    }
+  }
+  allSteps.push({visited: new Set(visited), frontier: [], current: null, order: [...order],
+    log: `Traversal complete. Visit order: ${order.join(' → ')}`});
+  return allSteps;
+}
+
+function renderGraph(s) {
+  const svg = document.getElementById('graph-svg');
+  let h = '';
+  EDGES.forEach(([a, b]) => {
+    const n1 = NODES[a], n2 = NODES[b];
+    h += `<line x1="${n1.x}" y1="${n1.y}" x2="${n2.x}" y2="${n2.y}" stroke="#4A4A45" stroke-width="1.5"/>`;
+  });
+  Object.entries(NODES).forEach(([id, pos]) => {
+    let c = COL.unvisited;
+    if (s.current === id) c = COL.current;
+    else if (s.visited && s.visited.has(id)) c = COL.visited;
+    else if (s.frontier && s.frontier.includes(id)) c = COL.frontier;
+    h += `<circle cx="${pos.x}" cy="${pos.y}" r="${R}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="2"/>`;
+    h += `<text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="700" fill="${c.text}" font-family="'Space Mono', monospace">${id}</text>`;
+  });
+  svg.innerHTML = h;
+}
+
+function renderState() {
+  const s = steps[stepIdx] || {visited: new Set(), frontier: [], current: null, order: []};
+  renderGraph(s);
+  const isLast = stepIdx === steps.length - 1;
+  document.getElementById('struct-display').textContent = s.frontier && s.frontier.length ? s.frontier.join(' → ') : '∅';
+  document.getElementById('visited-display').textContent = s.order && s.order.length ? s.order.join(' → ') : '—';
+  document.getElementById('current-display').textContent = s.current || '—';
+  document.getElementById('step-display').textContent = stepIdx + ' / ' + (steps.length - 1);
+  document.getElementById('btn-step').disabled = isLast;
+  const pct = steps.length > 1 ? (stepIdx / (steps.length - 1)) * 100 : 0;
+  document.getElementById('step-fill').style.width = pct + '%';
+  if (s.log) {
+    const logEl = document.getElementById('log');
+    logEl.innerHTML = s.log.replace(/([A-Z](?=[\s,→]|$))/g, '<strong>$1</strong>');
+  }
+}
+
+function doStep() {
+  if (stepIdx < steps.length - 1) { stepIdx++; renderState(); }
+  else stopAuto();
+}
+
+function reset() {
+  stopAuto();
+  steps = buildSteps(algo);
+  stepIdx = 0;
+  renderState();
+  document.getElementById('log').innerHTML = `Ready. Press <strong>Step</strong> or <strong>Auto-play</strong> to begin <strong>${algo.toUpperCase()}</strong> from node <strong>A</strong>.`;
+  document.getElementById('step-fill').style.width = '0%';
+}
+
+function toggleAuto() {
+  if (autoTimer) { stopAuto(); return; }
+  document.getElementById('btn-auto').textContent = '⏸ Pause';
+  autoTimer = setInterval(() => {
+    if (stepIdx >= steps.length - 1) { stopAuto(); return; }
+    doStep();
+  }, speedMs[speedIdx]);
+}
+
+function stopAuto() {
+  clearInterval(autoTimer); autoTimer = null;
+  document.getElementById('btn-auto').textContent = '▶ Auto-play';
+}
+
+function cycleSpeed() {
+  speedIdx = (speedIdx + 1) % 3;
+  document.getElementById('btn-speed').textContent = 'Speed: ' + speedLabels[speedIdx];
+  if (autoTimer) { stopAuto(); toggleAuto(); }
+}
+
+function switchAlgo(a, el) {
+  algo = a;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('struct-label').textContent = a === 'bfs' ? 'Queue (FIFO)' : 'Stack (LIFO) top →';
+  const cg = document.getElementById('complexity-grid');
+  if (a === 'bfs') {
+    cg.innerHTML = `
+      <div class="cx-item"><div class="cx-label">Time</div><div class="cx-val">O(V+E)</div></div>
+      <div class="cx-item"><div class="cx-label">Space</div><div class="cx-val">O(V)</div></div>
+      <div class="cx-item"><div class="cx-label">Shortest path</div><div class="cx-val">Yes ✓</div></div>
+      <div class="cx-item"><div class="cx-label">Complete</div><div class="cx-val">Yes ✓</div></div>`;
+  } else {
+    cg.innerHTML = `
+      <div class="cx-item"><div class="cx-label">Time</div><div class="cx-val">O(V+E)</div></div>
+      <div class="cx-item"><div class="cx-label">Space</div><div class="cx-val">O(h)</div></div>
+      <div class="cx-item"><div class="cx-label">Shortest path</div><div class="cx-val">No ✗</div></div>
+      <div class="cx-item"><div class="cx-label">Complete</div><div class="cx-val">Yes ✓</div></div>`;
+  }
+  reset();
+}
+
+reset();
+</script>
+</body>
+</html>
